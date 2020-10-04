@@ -1,0 +1,78 @@
+version: '3'
+
+services:
+
+  nextcloud-postgres:
+    container_name: nextcloud-postgres
+    image: postgres:13-alpine
+    restart: always
+    volumes:
+      - /data/nextcloud-postgresql-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+
+#  nextcloud-mariadb:
+#    container_name: nextcloud-mariadb
+#    image: jsurf/rpi-mariadb
+#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --init-connect='SET NAMES UTF8MB4;' --innodb-flush-log-at-trx-commit=0 --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+#    restart: always
+#    volumes:
+#      - /data/nextcloud-mysql-conf:/etc/mysql/conf.d
+#      - /data/nextcloud-mysql-data:/var/lib/mysql
+#    environment:
+#      - MYSQL_ROOT_PASSWORD=password
+#      - MYSQL_DATABASE=nextcloud
+#      - MYSQL_USER=nextcloud
+#      - MYSQL_PASSWORD=password
+
+  nextcloud-redis:
+    container_name: nextcloud-redis
+    image: redis:alpine
+    restart: always
+
+  nextcloud-app:
+    container_name: nextcloud-app
+    image: nextcloud:19.0.3-apache
+    restart: always
+    ports:
+      - 8080:80
+    volumes:
+      - /data/nextcloud-www:/var/www/html
+    environment:
+      - MYSQL_HOST=nextcloud-mariadb
+      - REDIS_HOST=nextcloud-redis
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=password
+      - NEXTCLOUD_ADMIN_USER=username
+      - NEXTCLOUD_ADMIN_PASSWORD=password
+    depends_on:
+      #- nextcloud-mariadb
+      - nextcloud-postgres
+      - nextcloud-redis
+
+#  nextcloud-web:
+#    container_name: nextcloud-web
+#    build: ./web
+#    restart: always
+#    ports:
+#        - 8080:80
+#    volumes:
+#      - /data/nextcloud-www:/var/www/html:ro
+#    depends_on:
+#      - nextcloud-app
+
+  nextcloud-cron:
+    container_name: nextcloud-cron
+    image: nextcloud:19.0.3-apache
+    restart: always
+    volumes:
+      - /data/nextcloud-www:/var/www/html
+    entrypoint: /cron.sh
+    depends_on:
+      #- nextcloud-mariadb
+      - nextcloud-postgres
+      - nextcloud-redis
